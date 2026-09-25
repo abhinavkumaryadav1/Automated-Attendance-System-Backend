@@ -12,11 +12,22 @@ const PORT = process.env.PORT || 3000;
 const TOKEN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (testing)
 const isProd = process.env.NODE_ENV === 'production';
 
-/** Comma-separated list, e.g. https://your-app.vercel.app,http://localhost:5500 */
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5500,http://127.0.0.1:5500,http://localhost:4173,http://127.0.0.1:4173')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+const defaultOrigins = [
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'https://automated-attendance-system-fronten-two.vercel.app',
+];
+
+/** FRONTEND_URL can be a comma-separated list of extra allowed origins */
+const allowedOrigins = [
+  ...defaultOrigins,
+  ...(process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+].filter((v, i, arr) => arr.indexOf(v) === i);
 
 const users = [
   { id: 't1', username: 'teacher', name: 'Alex Morgan', role: 'teacher', password: 'teacher123' },
@@ -41,9 +52,12 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      console.warn(`[cors] blocked origin: ${origin}`);
+      return callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
   })
 );
 app.use(express.json());
