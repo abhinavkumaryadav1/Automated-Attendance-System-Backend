@@ -18,6 +18,7 @@ const defaultOrigins = [
   'http://localhost:4173',
   'http://127.0.0.1:4173',
   'https://automated-attendance-system-fronten-two.vercel.app',
+  'https://automated-attendance-system-frontend-ezi95kkxk.vercel.app',
 ];
 
 /** FRONTEND_URL can be a comma-separated list of extra allowed origins */
@@ -28,6 +29,21 @@ const allowedOrigins = [
     .map((s) => s.trim())
     .filter(Boolean),
 ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Vercel preview / production URLs change often — allow any *.vercel.app over HTTPS
+  try {
+    const url = new URL(origin);
+    if (url.protocol === 'https:' && url.hostname.endsWith('.vercel.app')) {
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
 
 const users = [
   { id: 't1', username: 'teacher', name: 'Alex Morgan', role: 'teacher', password: 'teacher123' },
@@ -49,7 +65,7 @@ app.set('trust proxy', 1);
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
       console.warn(`[cors] blocked origin: ${origin}`);
