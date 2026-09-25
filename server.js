@@ -1,7 +1,6 @@
 const express = require('express');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
-const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
@@ -11,31 +10,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOKEN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (testing)
 const isProd = process.env.NODE_ENV === 'production';
+const DEPLOY_VERSION = 'cors-v3-2026-09-25';
 
 const defaultOrigins = [
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:4173',
   'http://127.0.0.1:4173',
-  'https://automated-attendance-system-fronten-two.vercel.app',
   'https://automated-attendance-system-frontend-ezi95kkxk.vercel.app',
+  'https://automated-attendance-system-fronten-two.vercel.app',
 ];
 
-/** FRONTEND_URL can be a comma-separated list of extra allowed origins */
 const allowedOrigins = [
   ...defaultOrigins,
   ...(process.env.FRONTEND_URL || '')
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/$/, ''))
     .filter(Boolean),
 ].filter((v, i, arr) => arr.indexOf(v) === i);
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
-  // Vercel preview / production URLs change often — allow any *.vercel.app over HTTPS
+  const clean = origin.replace(/\/$/, '');
+  if (allowedOrigins.includes(clean)) return true;
   try {
-    const url = new URL(origin);
+    const url = new URL(clean);
     if (url.protocol === 'https:' && url.hostname.endsWith('.vercel.app')) {
       return true;
     }
@@ -62,20 +61,23 @@ const attendanceSessions = new Map();
 
 app.set('trust proxy', 1);
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        return callback(null, true);
-      }
-      console.warn(`[cors] blocked origin: ${origin}`);
-      return callback(null, false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
-  })
-);
+// Explicit CORS + preflight (must be first). Do not rely on cors package alone.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  return next();
+});
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -147,7 +149,12 @@ function isValidToken(sess, token) {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'pulsemark-api' });
+  res.json({
+    ok: true,
+    service: 'pulsemark-api',
+    version: DEPLOY_VERSION,
+    allowedOrigins,
+  });
 });
 
 app.post('/api/login', (req, res) => {
@@ -365,19 +372,13 @@ app.post('/api/attendance/mark', requireAuth, (req, res) => {
   });
 });
 
-app.use((err, _req, res, next) => {
-  if (err && String(err.message || '').startsWith('CORS blocked')) {
-    return res.status(403).json({ error: err.message });
-  }
-  return next(err);
-});
-
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
 app.listen(PORT, () => {
   console.log(`PulseMark API on http://localhost:${PORT}`);
+  console.log(`Deploy version: ${DEPLOY_VERSION}`);
   console.log(`Allowed frontends: ${allowedOrigins.join(', ')}`);
   console.log('Demo: teacher/teacher123 · student1/student123');
 });
