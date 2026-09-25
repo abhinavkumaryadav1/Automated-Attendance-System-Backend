@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const TOKEN_INTERVAL_MS = 10_000; // 10 seconds
 const isProd = process.env.NODE_ENV === 'production';
-const DEPLOY_VERSION = 'cors-v3-2026-09-25';
+const DEPLOY_VERSION = 'cors-v4-2026-09-25';
 
 const defaultOrigins = [
   'http://localhost:5500',
