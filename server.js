@@ -8,7 +8,7 @@ const QRCode = require('qrcode');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const TOKEN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (testing)
+const TOKEN_INTERVAL_MS = 10_000; // 10 seconds
 const isProd = process.env.NODE_ENV === 'production';
 const DEPLOY_VERSION = 'cors-v3-2026-09-25';
 
